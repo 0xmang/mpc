@@ -2,13 +2,19 @@ import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
+
+# from langchain_community.embeddings import HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
-from langchain.chat_models import ChatOpenAI
+from langchain_community.llms import Ollama
+from langchain_community.embeddings import OllamaEmbeddings
+
+# from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from htmlTemplates import css, bot_template, user_template
-from langchain.llms import HuggingFaceHub
+
+# from langchain.llms import HuggingFaceHub
+# from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 
 def get_pdf_text(pdf_docs):
@@ -30,18 +36,23 @@ def get_text_chunks(text):
 
 def get_vectorstore(text_chunks):
     # embeddings = OpenAIEmbeddings()
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    embeddings = OllamaEmbeddings(model="nomic-embed-text")
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vectorstore
 
 
 def get_conversation_chain(vectorstore):
     # llm = ChatOpenAI()
-    llm = HuggingFaceHub(
-        repo_id="google/flan-t5-xxl",
-        model_kwargs={"temperature": 0.5, "max_length": 512},
+    # llm = HuggingFaceHub(
+    # repo_id="google/flan-t5-xxl",
+    # model_kwargs={"temperature": 0.5, "max_length": 512},
+    # )
+    llm = Ollama(
+        base_url="http://localhost:11434",
+        model="llama3",
+        # callback_manager=CallbackManager([StreamingStdOutCallbackHandler()]),
     )
-
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm, retriever=vectorstore.as_retriever(), memory=memory
@@ -76,7 +87,7 @@ def main():
         st.session_state.chat_history = None
 
     st.header("Chat with multiple PDFs :books:")
-    user_question = st.text_input("Ask a question about your documents:")
+    user_question = st.chat_input("Ask a question about your documents:")
     if user_question:
         handle_userinput(user_question)
 
